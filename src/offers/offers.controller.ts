@@ -1,32 +1,25 @@
-import { Controller, UseGuards, Get, Post, Body, Patch, Param, Delete, Req } from '@nestjs/common';
+import { Controller, UseGuards, Get, Post, Body, Param, Req, UseFilters } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
-import { UpdateOfferDto } from './dto/update-offer.dto';
-import { WishesService } from 'src/wishes/wishes.service';
 import { YandexGuard } from 'src/guards/yandex-guard';
 import { LocalGuard } from 'src/guards/local-guard';
 import { JwtGuard } from 'src/guards/jwt-guard';
+import { OfferOnOwnWishExceptionFilter } from 'src/exceptions-intreceptors/filters/offer-on-own-wish-exception-filter';
+import { OfferMoreThanWishPriceExceptionFilter } from 'src/exceptions-intreceptors/filters/offer-more-than-wish-price-exception-filter';
+
 
 @Controller('offers')
+@UseFilters(OfferOnOwnWishExceptionFilter)
+@UseFilters(OfferMoreThanWishPriceExceptionFilter)
 export class OffersController {
   constructor(
-    private readonly offersService: OffersService,
-    private readonly wishesService: WishesService
+    private readonly offersService: OffersService
   ) {}
 
   @UseGuards(JwtGuard, LocalGuard, YandexGuard)
   @Post()
   async create(@Body() createOfferDto: CreateOfferDto, @Req() req) {
-    const wish = await this.wishesService.findOne(createOfferDto.itemId)
-
-    if(wish && wish.price <= wish.raised){
-      return null
-    }
-
-    if(wish && wish.owner.id !== req.user.id) {
-      return this.offersService.create(createOfferDto)
-    }
-    return null
+    return this.offersService.create(createOfferDto, req.user.id)
   }
 
   @UseGuards(JwtGuard, LocalGuard, YandexGuard)

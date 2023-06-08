@@ -1,12 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Not, Repository, UpdateResult } from 'typeorm'
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { AuthUserDto } from './dto/auth-user.dto';
 import { compare, genSalt, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { UserAlreadyExistsException } from 'src/exceptions-intreceptors/exceptions/user-already-exist-exception';
 
 
 @Injectable()
@@ -17,13 +18,23 @@ export class UsersService {
     private userRepository: Repository<User>
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<AuthUserDto> {
+  async create(createUserDto: CreateUserDto): Promise<User | HttpException> {
     const { password, ...user } = createUserDto
+
+    const userCheck = await this.userRepository.findOneBy({
+      email: user.email
+    } || {
+      username: user.username
+    })
+
+    if(userCheck) {
+      return new UserAlreadyExistsException()
+    }   
     
     const salt = await genSalt(10);
     const hashPassword = await hash(password, salt) 
 
-    await this.userRepository.create({
+    this.userRepository.create({
       password: hashPassword,
       ...user
     })
@@ -93,8 +104,20 @@ export class UsersService {
     return null
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<HttpException | UpdateResult> {
     const { password, ...user } = updateUserDto
+
+    const userCheck = await this.userRepository.findBy({
+      username: updateUserDto.username
+    } || {
+      email: updateUserDto.email
+    } && {
+      id: Not(id)
+    })
+
+    if(userCheck.length) {
+      return new UserAlreadyExistsException()
+    }   
     
     const salt = await genSalt(10);
     const hashPassword = await hash(password, salt) 

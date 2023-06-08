@@ -1,4 +1,4 @@
-import { Controller, UseGuards, Get, Post, Body, Patch, Param, Delete, Req } from '@nestjs/common';
+import { Controller, UseGuards, Get, Post, Body, Patch, Param, Delete, Req, UseFilters } from '@nestjs/common';
 import { WishesService } from './wishes.service';
 import { CreateWishDto } from './dto/create-wish.dto';
 import { UpdateWishDto } from './dto/update-wish.dto';
@@ -18,18 +18,19 @@ export class WishesController {
 
   @UseGuards(JwtGuard, LocalGuard, YandexGuard)
   @Get('last')
-  async findLast() {
-    const wishes = await this.wishesService.findAll();
-
-    return wishes[wishes.length-1]
+  findLast() {
+    return this.wishesService.findMany({
+      order: { createdAt: 'DESC' },
+      take: 40,
+    });
   }
 
-  @UseGuards(JwtGuard, LocalGuard, YandexGuard)
   @Get('top')
-  async findTop() {
-    const wishes = await this.wishesService.findAll();
-
-    return wishes[0]
+  findTop() {
+    return this.wishesService.findMany({ 
+      order: { copied: 'DESC' },
+      take: 10
+     });
   }
 
   @UseGuards(JwtGuard, LocalGuard, YandexGuard)
@@ -52,7 +53,7 @@ export class WishesController {
 
   @UseGuards(JwtGuard, LocalGuard, YandexGuard)
   @Post(':id/copy')
-  copy(@Param('id') id: string) {
-    return this.wishesService.copy(+id)
+  copy(@Param('id') id: string, @Req() req) {
+    return this.wishesService.copy(+id, req.user.id)
   }
 }

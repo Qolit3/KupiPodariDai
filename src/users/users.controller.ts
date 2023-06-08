@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseFilters, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseFilters, Req, UseGuards, HttpException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -8,6 +8,7 @@ import { YandexGuard } from 'src/guards/yandex-guard';
 import { JwtGuard } from 'src/guards/jwt-guard';
 import { LocalGuard } from 'src/guards/local-guard';
 import { ValidationErrorExceptionFilter } from 'src/exceptions-intreceptors/filters/validation-error-exception-filter';
+import { UserAlreadyExistsException } from 'src/exceptions-intreceptors/exceptions/user-already-exist-exception';
 
 @Controller('')
 @UseFilters(UserAlreadyExistsExceptionFilter)
@@ -19,7 +20,9 @@ export class UsersController {
   @Post('signup')
   async create(@Body() createUserDto: CreateUserDto) {
     const user = await this.usersService.create(createUserDto);
-    return this.usersService.auth(user);
+    if(!(user instanceof HttpException)) {
+      return this.usersService.auth(user);
+    }
   }
 
   @Post('signin')
@@ -66,12 +69,7 @@ export class UsersController {
   async findMany(@Body() query: string) {
     return this.usersService.findMany(query)
   }
-
-
-  @UseGuards(YandexGuard)
-  @Get('yandex')
-  yandex() {}
-
+  
   @UseGuards(YandexGuard)
   @Get('yandex/callback')
   yandexCallback(@Req() req) {
